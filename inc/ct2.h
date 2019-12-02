@@ -67,5 +67,5 @@ struct Ct2File *readCt2FromFile(const char *filename);
 struct STKCab *makeCab(char *name, int numberOfBlocks, int actualBlock);
 char *makeDataBlock(struct STKCab *dh, char *data, 
 		unsigned int len, int *outLen);
-int calcCt2BufferSize(unsigned short size);
-int createOneCt2Binary(struct Tk2kBinary *binary, char *buffer);
+int calcCt2BufferSize(const unsigned short size);
+int createOneCt2Binary(struct Tk2kBinary *binary, const char *buffer);

@@ -19,11 +19,11 @@
 #pragma once
 
 // Defines
-#define DURSILENP	800			// 800 ms
-#define DURSILENS	500			// 500 ms
-#define DURCABA		1000		//   1 seg
-#define MINCABA		500			// 500 ms
-#define MAXCABA		3000		//   3 seg
+#define DURSILENP	300
+#define DURSILENS	500
+#define DURCABA		1000
+//#define MINCABA		500
+//#define MAXCABA		3000
 #define TK2000_BIT0 2000
 #define TK2000_BIT1 1000
 #define	TK2000_CABB 720

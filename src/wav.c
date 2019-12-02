@@ -52,7 +52,7 @@ int createWaveFile(char *filename) {
 	size_t s = 0;
 
 	if (!(fileWav = fopen(filename, "wb"))) {
-		return 1;
+		return 0;
 	}
 	memset(&waveCab, 0, sizeof(TWaveCab));
 
@@ -71,10 +71,10 @@ int createWaveFile(char *filename) {
 	waveCab.dataLength     = 0;					// Fill after
 	s = fwrite(&waveCab, 1, sizeof(TWaveCab), fileWav);
 	if (s != sizeof(TWaveCab)) {
-		return 1;
+		return 0;
 	}
 	dataSize = 0;
-	return 0;
+	return 1;
 }
 
 /*****************************************************************************/

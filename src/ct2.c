@@ -147,29 +147,29 @@ char *makeDataBlock(struct STKCab *dh, char *data,
 }
 
 /*****************************************************************************/
-int calcCt2BufferSize(unsigned short size) {
-	int m, n, tamBuf;
+int calcCt2BufferSize(const unsigned short size) {
+	int m, n, sizeOfBuffer;
 
 	/* Calculate size of buffer */
 	n = size / 256;
 	m = size % 256;
-	tamBuf = 4;
-	tamBuf += 4 + 4 + sizeof(struct STKCab) + sizeof(struct STKAddr) + 1;
-	tamBuf += n * (4 + 4 + sizeof(struct STKCab) + 256 + 1);
+	sizeOfBuffer = 4;
+	sizeOfBuffer += 4 + 4 + sizeof(struct STKCab) + sizeof(struct STKAddr) + 1;
+	sizeOfBuffer += n * (4 + 4 + sizeof(struct STKCab) + 256 + 1);
 	if (m)
-		tamBuf += 4 + 4 + sizeof(struct STKCab) + m + 1;
-	return tamBuf;
+		sizeOfBuffer += 4 + 4 + sizeof(struct STKCab) + m + 1;
+	return sizeOfBuffer;
 }
 
 /*****************************************************************************/
-int createOneCt2Binary(struct Tk2kBinary *binary, char *buffer) {
+int createOneCt2Binary(struct Tk2kBinary *binary, const char *buffer) {
 	int chunkSize, outSize, sizeOfBinary;
 	char *p, *po, *pd;
 	unsigned short tt;
 	struct STKCab *tkcab;
 	struct STKAddr tkend;
 
-	p = buffer;
+	p = (char *)buffer;
 
 	// Header A
 	memcpy(p, CT2_CAB_A, 4);
