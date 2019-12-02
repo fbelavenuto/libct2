@@ -21,8 +21,96 @@
 #include <string.h>
 #include "ct2.h"
 
-
 // Functions
+
+/*****************************************************************************/
+struct Ct2File *readCt2FromBuffer(const char *buffer, const unsigned long size) {
+	struct Ct2File *result = NULL;
+	struct SCh ch;
+	struct STKCab th;
+	struct STKAddr ta;
+	unsigned long posBuf = 4;
+	struct Tk2kBinary *binary = NULL;
+	int i, numOfBinaries = 0, posData = 0;
+
+	// Check MAGIC
+	if (memcmp(buffer, CT2_MAGIC, 4) != 0) {
+		return NULL;
+	}
+
+	while (posBuf < size) {
+		memcpy(&ch, &buffer[posBuf], 4);
+		posBuf += 4;
+		// If is DATA chunk
+		if (memcmp(ch.ID, CT2_DATA, 2) == 0) {
+			memcpy(&th, &buffer[posBuf], 8);
+			posBuf += 8;
+			// If is first block
+			if (th.actualBlock == 0) {
+				if (NULL == result) {
+					result = (struct Ct2File *)malloc(sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *));
+					if (NULL == result) {
+						return NULL;
+					}
+					memset(result, 0, sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *));
+				} else {
+					size_t newSize = sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *) * (numOfBinaries+1);
+					result = (struct Ct2File *)realloc(result, newSize);
+					if (NULL == result) {
+						return NULL;
+					}
+				}
+				memcpy(&ta, &buffer[posBuf], 4);
+				posBuf += 4;
+				binary = (struct Tk2kBinary *)malloc(sizeof(struct Tk2kBinary));
+				result->binaries[numOfBinaries++] = binary;
+				memset(binary, 0, sizeof(struct Tk2kBinary));
+				// copy informations
+				for (i = 0; i < 6; i++) {
+					binary->name[i] = th.name[i] & 0x7F;
+				}
+				binary->numberOfBlocks = th.numberOfBlocks;
+				binary->initialAddr = ta.initialAddr;
+				binary->endAddr = ta.endAddr;
+				binary->size = ta.endAddr - ta.initialAddr + 1;
+				// alloc data
+				binary->data = (char *)malloc(binary->size);
+				if (NULL == binary->data) {
+					return NULL;
+				}
+				posData = 0;
+				posBuf += 1; // skip checksum
+			} else {
+				int lenData = ch.size - 9;
+				memcpy(&binary->data[posData], &buffer[posBuf], lenData);
+				posData += lenData;
+				posBuf += ch.size - 8; // skip checksum
+			}
+		}
+	}
+	result->numOfBinaries = numOfBinaries;
+	return result;
+}
+
+/*****************************************************************************/
+struct Ct2File *readCt2FromFile(const char *filename) {
+	struct Ct2File *result = NULL;
+	char *buffer = NULL;
+	unsigned long fileSize;
+
+	FILE *fileBin = fopen(filename, "rb");
+	if (!fileBin)
+		return NULL;
+	fseek(fileBin, 0, SEEK_END);
+	fileSize = (unsigned long)(ftell(fileBin));
+	fseek(fileBin, 0, SEEK_SET);
+	buffer = (char *)malloc(fileSize);
+	fread(buffer, 1, fileSize, fileBin);
+	fclose(fileBin);
+	result = readCt2FromBuffer(buffer, fileSize);
+	free(buffer);
+	return result;
+}
 
 /*****************************************************************************/
 struct STKCab *makeCab(char *name, int numberOfBlocks, int actualBlock) {
@@ -40,12 +128,15 @@ struct STKCab *makeCab(char *name, int numberOfBlocks, int actualBlock) {
 }
 
 /*****************************************************************************/
-char *makeDataBlock(struct STKCab *dh, 
-		unsigned char *data, unsigned int len) {
-	int i, t = sizeof(struct STKCab);
-	char *out = (char *)malloc(t + len + 1);
+char *makeDataBlock(struct STKCab *dh, char *data, 
+		unsigned int len, int *outLen) {
+	int i, t;
+	char *out = NULL;
 	unsigned char cs = 0xFF;
 
+	t = sizeof(struct STKCab);
+	*outLen = t + len + 1;
+	out = (char *)malloc(*outLen);
 	memcpy(out, dh, t);
 	memcpy(out+t, data, len);
 	for (i = 0; i < (t+len); i++) {
@@ -63,7 +154,7 @@ int calcCt2BufferSize(unsigned short size) {
 	n = size / 256;
 	m = size % 256;
 	tamBuf = 4;
-	tamBuf += 4 + 4 + sizeof(struct STKCab) + sizeof(struct STKEnd) + 1;
+	tamBuf += 4 + 4 + sizeof(struct STKCab) + sizeof(struct STKAddr) + 1;
 	tamBuf += n * (4 + 4 + sizeof(struct STKCab) + 256 + 1);
 	if (m)
 		tamBuf += 4 + 4 + sizeof(struct STKCab) + m + 1;
@@ -71,15 +162,12 @@ int calcCt2BufferSize(unsigned short size) {
 }
 
 /*****************************************************************************/
-int makeCt2File(char *name, unsigned char numberOfBlocks, 
-		unsigned short initialAddr, unsigned short endAddr,
-		char *data, unsigned short size, char *buffer) {
-	int t, da;
-	char *p, *pc, *pd, *l;
-	unsigned char cs;
+int createOneCt2Binary(struct Tk2kBinary *binary, char *buffer) {
+	int chunkSize, outSize, sizeOfBinary;
+	char *p, *po, *pd;
 	unsigned short tt;
 	struct STKCab *tkcab;
-	struct STKEnd tkend;
+	struct STKAddr tkend;
 
 	p = buffer;
 
@@ -91,55 +179,37 @@ int makeCt2File(char *name, unsigned char numberOfBlocks,
 	p += 4;
 	memcpy(p, CT2_DATA, 2);
 	p += 2;
-	tt = sizeof(struct STKCab) + sizeof(struct STKEnd) + 1;
+	tt = sizeof(struct STKCab) + sizeof(struct STKAddr) + 1;
 	memcpy(p, &tt, 2);
 	p += 2;
-	tkcab = makeCab(name, numberOfBlocks, 0);
-	tkend.initialAddr = initialAddr;
-	tkend.endAddr = endAddr;
-	pc = p;
-	memcpy(p, &tkcab, sizeof(struct STKCab));
-	p += sizeof(struct STKCab);
-	memcpy(p, &tkend, sizeof(struct STKEnd));
-	p += sizeof(struct STKEnd);
-	// calculate checksum
-	cs = 0xFF;
-	for (l = pc; l < p; l++) {
-		cs ^= *l;
-	}
-	memcpy(p, &cs, 1);
-	p += 1;
-	da = size;
-	pd = data;
-	while (da > 0) {
-		if (da > 256)
-			t = 256;
-		else
-			t = da;
+	tkcab = makeCab(binary->name, binary->numberOfBlocks, 0);
+	tkend.initialAddr = binary->initialAddr;
+	tkend.endAddr = binary->endAddr;
+	po = makeDataBlock(tkcab, (char *)&tkend, sizeof(struct STKAddr), &outSize);
+	memcpy(p, po, outSize);
+	p += outSize;
+	sizeOfBinary = binary->size;
+	pd = binary->data;
+	while (sizeOfBinary > 0) {
+		if (sizeOfBinary > 256) {
+			chunkSize = 256;
+		} else {
+			chunkSize = sizeOfBinary;
+		}
 		memcpy(p, CT2_CAB_B, 4);
 		p += 4;
 		memcpy(p, CT2_DATA, 2);
 		p += 2;
-		tt = t + sizeof(struct STKCab) + 1;
+		tt = chunkSize + sizeof(struct STKCab) + 1;
 		memcpy(p, &tt, 2);
 		p += 2;
 		tkcab->actualBlock++;
-		pc = p;
-		memcpy(p, &tkcab, sizeof(struct STKCab));
-		p += sizeof(struct STKCab);
-		memcpy(p, pd, t);
-		p += t;
-		// calculate checksum
-		cs = 0xFF;
-		for (l = pc; l < p; l++) {
-			cs ^= *l;
-		}
-		memcpy(p, &cs, 1);
-		p += 1;
-		pd += t;
-		da -= t;
+		po = makeDataBlock(tkcab, pd, chunkSize, &outSize);
+		memcpy(p, po, outSize);
+		p += outSize;
+		pd += chunkSize;
+		sizeOfBinary -= chunkSize;
 	}
 	free(tkcab);
 	return 1;
 }
-

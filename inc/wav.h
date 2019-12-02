@@ -27,17 +27,11 @@
 #define TK2000_BIT0 2000
 #define TK2000_BIT1 1000
 #define	TK2000_CABB 720
-
 #ifndef WAVE_FORMAT_PCM
 # define WAVE_FORMAT_PCM 0x0001 /* Microsoft Corporation */
 #endif
 
-// Enums
-enum WaveFormat {
-	WF_SQUARE = 0,
-	WF_SINE
-};
-
+// Structs
 #pragma pack(push, 1)
 typedef struct SWaveCab {
 	unsigned char  groupID[4];		// RIFF
@@ -56,14 +50,19 @@ typedef struct SWaveCab {
 } TWaveCab, *PTWaveCab;
 #pragma pack(pop)
 
+// Enums
+enum WaveFormat {
+	WF_SQUARE = 0,
+	WF_SINE
+};
 
 // Prototipes
-void wavConfig(enum WaveFormat to, unsigned int ta, unsigned int bi, double vol, int inv);
+void wavConfig(enum WaveFormat to, unsigned int ta,
+		unsigned int bi, double vol, int inv);
 int createWaveFile(char *filename);
 int playSilence(int durationMs);
 int playTone(int frequency, int durationMs, double dutyCycle);
 int finishWaveFile();
 int tk2kPlayByte(unsigned char c);
 int tk2kPlayBuffer(unsigned char *buffer, int len);
-int tk2kPlayBin(unsigned char *data, int len, char *name,
-		int initialAddr);
+int tk2kPlayBin(char *data, int len, char *name, int initialAddr);

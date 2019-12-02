@@ -19,6 +19,7 @@
 #pragma once
 
 // Defines
+#define CT2_EXT ".ct2"
 #define CT2_MAGIC "CTK2"
 #define CT2_CAB_A "CA\0\0"
 #define CT2_CAB_B "CB\0\0"
@@ -28,6 +29,10 @@
 
 // Structs
 #pragma pack(push, 1)
+struct SCh {
+	unsigned char ID[2];
+	unsigned short size;
+};
 
 struct STKCab {
 	unsigned char name[6];
@@ -35,23 +40,32 @@ struct STKCab {
 	unsigned char actualBlock;
 };
 
-struct STKEnd {
+struct STKAddr {
 	unsigned short initialAddr;
 	unsigned short endAddr;
 };
-
-struct SCh {
-	unsigned char id[2];
-	unsigned short size;
-};
-
 #pragma pack(pop)
 
+struct Tk2kBinary {
+	char name[7];
+	int  numberOfBlocks;
+	int  initialAddr;
+	int  endAddr;
+	int  size;
+	char *data;
+};
+
+struct Ct2File {
+	int numOfBinaries;
+	struct Tk2kBinary *binaries[];
+};
+
 // Prototipes
+struct Ct2File *readCt2FromBuffer(const char *buffer, 
+		const unsigned long size);
+struct Ct2File *readCt2FromFile(const char *filename);
 struct STKCab *makeCab(char *name, int numberOfBlocks, int actualBlock);
-char *makeDataBlock(struct STKCab *dh, 
-		unsigned char *data, unsigned int len);
+char *makeDataBlock(struct STKCab *dh, char *data, 
+		unsigned int len, int *outLen);
 int calcCt2BufferSize(unsigned short size);
-int makeCt2File(char *name, unsigned char numberOfBlocks, 
-		unsigned short initialAddr, unsigned short endAddr,
-		char *data, unsigned short size, char *buffer);
+int createOneCt2Binary(struct Tk2kBinary *binary, char *buffer);

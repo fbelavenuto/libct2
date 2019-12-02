@@ -24,6 +24,7 @@
 #include "wav.h"
 #include "ct2.h"
 
+
 // Variables
 static enum WaveFormat waveType  = WF_SINE;
 static unsigned int  sampleRate  = 44100;
@@ -224,33 +225,31 @@ int tk2kPlayBuffer(unsigned char *buffer, int len) {
 }
 
 /*****************************************************************************/
-int tk2kPlayBin(unsigned char *data, int len, char *name,
-		int initialAddr) {
+int tk2kPlayBin(char *data, int len, char *name, int initialAddr) {
 	struct STKCab *dh;
-	struct STKEnd de;
+	struct STKAddr de;
 	char *buffer = NULL;
-	int  r = 0, tb, ba, t1, t2;
+	int outSize;
+	int  r = 0, tb, ba;
 
 	if (len < 1)
 		return 1;
-	t1 = sizeof(struct STKCab);
-	t2 = sizeof(struct STKEnd);
 	tb = ((len-1) / 256)+1;					// Calculate how many blocks are need
 	dh = makeCab(name, tb, 0);				// Create first block
 	de.initialAddr = initialAddr;
 	de.endAddr = initialAddr + len - 1;
-	buffer = makeDataBlock(dh, (unsigned char *)&de, t2);
+	buffer = makeDataBlock(dh, (char *)&de, sizeof(struct STKAddr), &outSize);
 	r |= playSilence(100);
 	r |= playTone(TK2000_BIT1, 1000, 0.5);		// Piloto
-	r |= tk2kPlayBuffer((unsigned char *)buffer, t1 + t2 + 1);
+	r |= tk2kPlayBuffer((unsigned char *)buffer, outSize);
 	free(buffer);
 	for (ba = 1; ba <= tb; ba++) {
 		dh->actualBlock = ba;
-		unsigned char *p = data + (ba-1) * 256;
-		int t3 = MIN(256, len);
+		char *p = data + (ba-1) * 256;
+		int ts = MIN(256, len);
 		len -= 256;
-		buffer = makeDataBlock(dh, p, t3);
-		r |= tk2kPlayBuffer((unsigned char *)buffer, t1 + t3 + 1);
+		buffer = makeDataBlock(dh, p, ts, &outSize);
+		r |= tk2kPlayBuffer((unsigned char *)buffer, outSize);
 		free(buffer);
 	}
 	free(dh);
