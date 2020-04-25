@@ -38,6 +38,12 @@ struct Ct2File *readCt2FromBuffer(const char *buffer, const unsigned long size) 
 		return NULL;
 	}
 
+	result = (struct Ct2File *)malloc(sizeof(struct Ct2File));
+	if (NULL == result) {
+		return NULL;
+	}
+	memset(result, 0, sizeof(struct Ct2File));
+
 	while (posBuf < size) {
 		memcpy(&ch, &buffer[posBuf], 4);
 		posBuf += 4;
@@ -47,18 +53,10 @@ struct Ct2File *readCt2FromBuffer(const char *buffer, const unsigned long size) 
 			posBuf += 8;
 			// If is first block
 			if (th.actualBlock == 0) {
+				size_t newSize = sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *) * (numOfBinaries+1);
+				result = (struct Ct2File *)realloc(result, newSize);
 				if (NULL == result) {
-					result = (struct Ct2File *)malloc(sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *));
-					if (NULL == result) {
-						return NULL;
-					}
-					memset(result, 0, sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *));
-				} else {
-					size_t newSize = sizeof(struct Ct2File) + sizeof(struct Tk2kBinary *) * (numOfBinaries+1);
-					result = (struct Ct2File *)realloc(result, newSize);
-					if (NULL == result) {
-						return NULL;
-					}
+					return NULL;
 				}
 				memcpy(&ta, &buffer[posBuf], 4);
 				posBuf += 4;

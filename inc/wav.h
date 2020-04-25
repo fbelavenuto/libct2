@@ -31,6 +31,10 @@
 # define WAVE_FORMAT_PCM 0x0001 /* Microsoft Corporation */
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Structs
 #pragma pack(push, 1)
 typedef struct SWaveCab {
@@ -66,3 +70,7 @@ int finishWaveFile();
 int tk2kPlayByte(unsigned char c);
 int tk2kPlayBuffer(unsigned char *buffer, int len);
 int tk2kPlayBin(char *data, int len, char *name, int initialAddr);
+
+#ifdef __cplusplus
+}
+#endif
